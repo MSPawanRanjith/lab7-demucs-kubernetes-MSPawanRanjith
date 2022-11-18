@@ -17,7 +17,7 @@ spec:
               service:
                 name: demucs-rest-service
                 port:
-                  number: 5001
+                  number: 5000
             path: /
             pathType: Prefix
 #
@@ -31,6 +31,6 @@ metadata:
 spec:
   type: ClusterIP
   ports:
-    - port: 5001
+    - port: 5000
   selector:
     app: demucs-rest

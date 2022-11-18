@@ -17,12 +17,12 @@ spec:
           image: gaka4787/demucs-rest:latest
           imagePullPolicy: Always
           ports:
-            - containerPort: 5001
+            - containerPort: 5000
               protocol: TCP
           env:
-            - name: REDIS_HOST
+            - name: REDISTOGO_URL
               value: "redis"
-            - name: REDIS_PORT
+            - name: REDISTOGO_PORT
               value: "6379"
             - name: MINIO_HOST
               value: "minio:9000"
