@@ -1,5 +1,5 @@
-VERSION=v2
-DOCKERUSER=mspawanranjith
+VERSION=v1
+DOCKERUSER=gaka4787
 
 build:
 	docker build --platform=linux/amd64 -f Dockerfile -t demucs-rest .

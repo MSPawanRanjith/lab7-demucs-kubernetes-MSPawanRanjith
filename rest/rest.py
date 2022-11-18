@@ -1,10 +1,26 @@
+#!/usr/bin/env python3
+
+##
+## Sample Flask REST server implementing two methods
+##
+## Endpoint /api/image is a POST method taking a body containing an image
+## It returns a JSON document providing the 'width' and 'height' of the
+## image that was provided. The Python Image Library (pillow) is used to
+## proce#ss the image
+##
+## Endpoint /api/add/X/Y is a post or get method returns a JSON body
+## containing the sum of 'X' and 'Y'. The body of the request is ignored
+##
+##
 from flask import Flask, request, Response, send_file
 import jsonpickle
 import base64
 import io
+import logging
 import os
 import redis
 from minio import Minio
+import glob
 import uuid
 import json
 
@@ -12,18 +28,23 @@ import json
 app = Flask(__name__)
 # redis_url = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 
-# redis = redis.from_url(redis_url)
-redisHost = os.getenv("REDISTOGO_URL") or "localhost"
-redisPort = os.getenv("REDISTOGO_PORT") or 6379
+# r = redis.from_url(redis_url)
+redisHost = os.getenv("REDIS_HOST") or "localhost"
+redisPort = os.getenv("REDIS_PORT") or 6379
 
-redis = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
+r = redis.StrictRedis(host=redisHost, port=redisPort, db=0)
 
+log = logging.getLogger('werkzeug')
+log.setLevel(logging.DEBUG)
 REDIS_KEY = "toWorkers"
 BUCKET_NAME = "working"
-
+# ACCESS_KEY = "rootuser"
+# SECRET_KEY = "rootpass123"
+# MINIO_CLIENT = Minio("localhost:9000", access_key=ACCESS_KEY, secret_key=SECRET_KEY, secure=False)
 minioHost = os.getenv("MINIO_HOST") or "localhost:9000"
 minioUser = os.getenv("MINIO_USER") or "rootuser"
 minioPasswd = os.getenv("MINIO_PASSWD") or "rootpass123"
+print(f"Getting minio connection now for host {minioHost}!")
 
 MINIO_CLIENT = None
 try:
@@ -59,8 +80,8 @@ def seperate():
         'context' : callback
     }
     print("Pushing to queue", REDIS_KEY,data)
-    count = redis.lpush(REDIS_KEY,json.dumps(data))
-    redis.lpush("logging", f"Pushed file to queue {file_name}")
+    count = r.lpush(REDIS_KEY,json.dumps(data))
+    r.lpush("logging", f"Pushed file to queue {file_name}")
     print("Current queue length", count)
     response = {
         "hash": file_name, 
@@ -71,7 +92,7 @@ def seperate():
 
 @app.route('/apiv1/queue', methods=['GET'])
 def queue():
-    current_files = list(map(str,redis.lrange(REDIS_KEY, 0, -1)))
+    current_files = list(map(str,r.lrange(REDIS_KEY, 0, -1)))
     response = {'queue' : current_files}
     response_pickled = jsonpickle.encode(response)
     return Response(response=response_pickled, status=200, mimetype="application/json")
@@ -81,6 +102,13 @@ def get_track():
     args = request.args.to_dict()
     file_id = args['file_id']
     component = args['component'] + ".mp3"
+    # print(file_id, component)
+    # buckets = MINIO_CLIENT.list_buckets()
+    # print(buckets)
+    # files = MINIO_CLIENT.list_objects()
+    # response = {'buckets' : buckets, 'files' : files}
+    # response_pickled = jsonpickle.encode(response)
+    # return Response(response=response_pickled, status=200, mimetype="application/json")
     MINIO_CLIENT.fget_object(file_id, component, component)
     return send_file(component,as_attachment=True)
 
@@ -104,5 +132,9 @@ def remove():
         response_pickled = jsonpickle.encode(response)
         return Response(response=response_pickled, status=200, mimetype="application/json")
 
+#Health Check endpoint
+@app.route('/', methods=['GET'])
+def hello():
+    return '<h1> Music Separation Server</h1><p> Use a valid endpoint </p>'
 # start flask app
-app.run(host="0.0.0.0", port=5000)
+app.run(host="0.0.0.0", port=5001)
